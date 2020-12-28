@@ -8,17 +8,12 @@ class User(db.Model):
     login = db.Column(db.String(256))
     password_hash = db.Column(db.String(256))
 
-    wallets = db.relationship("Wallet", backref='user_id')
-
 
 class Wallet(db.Model):
     __tablename__ = 'wallet'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-
-    user = db.relationship("User")
-    expenses = db.relationship("Expense", backref='wallet_id')
 
 
 class Expense(db.Model):
@@ -30,9 +25,6 @@ class Expense(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
     name = db.Column(db.String(256))
 
-    wallet = db.relationship("Wallet")
-    item = db.relationship("Item")
-
 
 class Item(db.Model):
     __tablename__ = 'item'
@@ -42,8 +34,6 @@ class Item(db.Model):
     amount = db.Column(db.Integer)
     budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'))
 
-    budget = db.relationship("Budget")
-
 
 class Budget(db.Model):
     __tablename__ = 'budget'
@@ -52,5 +42,3 @@ class Budget(db.Model):
     invite = db.Column(db.String(256))
     name = db.Column(db.String(256))
     invite_expires = db.Column(db.DateTime)
-
-    items = db.relationship("Item", backref='budget_id')
