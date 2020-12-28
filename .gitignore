@@ -1,0 +1,7 @@
+env
+alembic.ini
+app/credentials.py
+__pycache__
+.vscode
+app/__pycache__
+migrations/__pycache__
