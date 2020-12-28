@@ -1,4 +1,4 @@
-from app import app, db
+from app import app, db, auth
 from passlib.hash import pbkdf2_sha256
 from app.models import *
 
@@ -7,9 +7,24 @@ import datetime, string, random
 from flask import jsonify, request
 import re
 
-@app.route('/api/v1/hello-world-<id>')
-def index(id):
-    return 'Hello World {}'.format(id)
+@auth.verify_password
+def verify_password(login, password):
+    user = db.session.query(User).filter_by(login=login).first()
+    if not user:
+        return None
+    if pbkdf2_sha256.verify(password, user.password_hash):
+        return user
+
+@app.route('/api/v1/user/getMe')
+@auth.login_required
+def getMe():
+    user = auth.current_user()
+    
+    return jsonify({
+            'user_id': user.id,
+            'user_name': user.name,
+            'wallet_id': db.session.query(Wallet).filter_by(user_id=user.id).first().id
+        }), 200
 
 @app.route('/api/v1/user/signUp', methods=['POST'])
 def signUp():
@@ -48,6 +63,7 @@ Latin letters, digits and _ are allowed.'
     return jsonify({'message': 'User succesfully created.'}), 201
 
 @app.route('/api/v1/wallet/<walletId>/addExpense', methods=['POST'])
+@auth.login_required
 def addExpense(walletId):
     name = request.args['name']
     amount = request.args['amount']
@@ -59,6 +75,9 @@ def addExpense(walletId):
             return jsonify({'message': 'Wallet not found.'}), 404
     except ValueError:
         return jsonify({'message': 'Wallet id must be integer.'}), 400
+
+    if auth.current_user().id != db.session.query(Wallet).get(walletId).user_id:
+        return jsonify({'message': 'Access denied.'}), 403
 
     try:
         amount = int(amount)
@@ -105,6 +124,7 @@ def getWallet(walletId):
     ), 200
 
 @app.route('/api/v1/expense/<expenseId>', methods=['PUT', 'DELETE'])
+@auth.login_required
 def editExpense(expenseId):
     try:
         expenseId = int(expenseId)
@@ -113,6 +133,9 @@ def editExpense(expenseId):
             return jsonify({'message': 'Expense not found.'}), 404
     except ValueError:
         return jsonify({'message': 'Expense id must be integer.'}), 400
+
+    if auth.current_user().id != db.session.query(Wallet).get(expense.wallet_id).user_id:
+        return jsonify({'message': 'Access denied.'}), 403
 
 
     if request.method == 'PUT':
@@ -216,6 +239,7 @@ def getBudget(budgetId):
     ), 200
 
 @app.route('/api/v1/item/<itemId>/putMoney', methods=['POST'])
+@auth.login_required
 def putMoney(itemId):
     # Check itemId
     try:
@@ -234,6 +258,9 @@ def putMoney(itemId):
             return jsonify({'message': 'Wallet not found.'}), 404
     except ValueError:
         return jsonify({'message': 'Wallet id is either not specified or not an integer.'}), 400
+
+    if auth.current_user().id != wallet.user_id:
+        return jsonify({'message': 'Access denied.'}), 403
 
     try:
         amount = int(request.args.get('amount'))
